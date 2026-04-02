@@ -8,6 +8,28 @@ const ARQUIVO_ESTADO = 'estado.json';
 
 // CMM usa SAPL — API REST pública, sem autenticação
 const API_BASE = 'https://sapl.cmm.am.gov.br/api';
+const HEADERS = {
+  'Accept': 'application/json',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+};
+
+// Carrega mapa de tipos na inicialização (id → sigla)
+async function carregarTipos() {
+  try {
+    const res = await fetch(`${API_BASE}/materia/tipomaterialegislativa/?page_size=100`, { headers: HEADERS });
+    if (!res.ok) return {};
+    const d = await res.json();
+    const mapa = {};
+    for (const t of (d.results || [])) {
+      mapa[t.id] = t.sigla || t.descricao || String(t.id);
+    }
+    console.log(`📋 ${Object.keys(mapa).length} tipos carregados`);
+    return mapa;
+  } catch (e) {
+    console.warn('⚠️ Não foi possível carregar tipos:', e.message);
+    return {};
+  }
+}
 
 function carregarEstado() {
   if (fs.existsSync(ARQUIVO_ESTADO)) {
@@ -90,7 +112,7 @@ async function buscarProposicoes() {
   console.log(`🔍 Buscando proposições de ${ano} na CMM (Manaus)...`);
 
   do {
-    const url = `${API_BASE}/materia/materialegislativa/?ano=${ano}&page=${pagina}&page_size=100&o=-data_apresentacao`;
+    const url = `${API_BASE}/materia/materialegislativa/?ano=${ano}&page=${pagina}&page_size=100&o=-data_apresentacao&expand=tipo_materia`;
     console.log(`  → Página ${pagina}/${totalPaginas}: ${url}`);
 
     const response = await fetch(url, {
@@ -144,8 +166,13 @@ async function resolverAutor(autorUrl) {
   return String(autorUrl);
 }
 
-async function normalizarProposicao(p) {
-  const tipo = p.tipo_materia_str || p.tipo_materia?.sigla || p.tipo_materia?.descricao || String(p.tipo_materia || '-');
+async function normalizarProposicao(p, tiposMapa = {}) {
+  // CMM retorna campo "tipo" como inteiro FK; usar mapa carregado na inicialização
+  const tipoRaw = p.tipo_materia || p.tipo;
+  const tipo = p.tipo_materia_str
+    || p.tipo_materia?.sigla
+    || p.tipo_materia?.descricao
+    || (typeof tipoRaw === 'number' ? (tiposMapa[tipoRaw] || String(tipoRaw)) : String(tipoRaw || '-'));
   const numero = p.numero || '-';
   const ano = p.ano || '-';
   const ementa = (p.ementa || '-').substring(0, 200);
@@ -175,6 +202,9 @@ async function normalizarProposicao(p) {
   const estado = carregarEstado();
   const idsVistos = new Set(estado.proposicoes_vistas);
 
+  // Carregar mapa de tipos antes de buscar proposições
+  const tiposMapa = await carregarTipos();
+
   const proposicoesRaw = await buscarProposicoes();
 
   if (proposicoesRaw.length === 0) {
@@ -183,7 +213,7 @@ async function normalizarProposicao(p) {
   }
 
   console.log('🔄 Normalizando proposições...');
-  const proposicoes = await Promise.all(proposicoesRaw.map(normalizarProposicao));
+  const proposicoes = await Promise.all(proposicoesRaw.map(p => normalizarProposicao(p, tiposMapa)));
   const proposicoesValidas = proposicoes.filter(p => p.id);
   console.log(`📊 Total normalizado: ${proposicoesValidas.length}`);
 
