@@ -94,7 +94,10 @@ async function buscarProposicoes() {
     console.log(`  → Página ${pagina}/${totalPaginas}: ${url}`);
 
     const response = await fetch(url, {
-      headers: { 'Accept': 'application/json' }
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      }
     });
 
     if (!response.ok) {
@@ -130,7 +133,7 @@ async function resolverAutor(autorUrl) {
   if (!autorUrl) return '-';
   if (typeof autorUrl === 'string' && autorUrl.startsWith('http')) {
     try {
-      const res = await fetch(autorUrl, { headers: { 'Accept': 'application/json' } });
+      const res = await fetch(autorUrl, { headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } });
       const data = await res.json();
       return data.nome || data.name || '-';
     } catch {
