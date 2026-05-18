@@ -7,6 +7,8 @@ const EMAIL_SENHA = process.env.EMAIL_SENHA;
 const ARQUIVO_ESTADO = 'estado.json';
 
 // CMM usa SAPL — API REST pública, sem autenticação
+const CASA_NOME = 'Câmara Municipal de Manaus';
+const SAPL_BASE = 'https://sapl.cmm.am.gov.br';
 const API_BASE = 'https://sapl.cmm.am.gov.br/api';
 const HEADERS = {
   'Accept': 'application/json',
@@ -60,7 +62,7 @@ async function enviarEmail(novas) {
     const rows = porTipo[tipo].map(p =>
       `<tr>
         <td style="padding:8px;border-bottom:1px solid #eee;color:#555;font-size:12px">${p.tipo || '-'}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee"><strong>${p.numero || '-'}/${p.ano || '-'}</strong></td>
+        <td style="padding:8px;border-bottom:1px solid #eee"><strong><a href="${p.url || SAPL_BASE}" style="color:#1a3a5c;text-decoration:none">${p.numero || '-'}/${p.ano || '-'}</a></strong></td>
         <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.autor || '-'}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap">${p.data || '-'}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.ementa || '-'}</td>
@@ -72,7 +74,7 @@ async function enviarEmail(novas) {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:900px;margin:0 auto">
       <h2 style="color:#1a3a5c;border-bottom:2px solid #1a3a5c;padding-bottom:8px">
-        🏛️ CMM — ${novas.length} nova(s) proposição(ões)
+        🏛️ ${CASA_NOME} — ${novas.length} nova(s) proposição(ões)
       </h2>
       <p style="color:#666">Monitoramento automático — ${new Date().toLocaleString('pt-BR')}</p>
       <table style="width:100%;border-collapse:collapse;font-size:14px">
@@ -88,15 +90,15 @@ async function enviarEmail(novas) {
         <tbody>${linhas}</tbody>
       </table>
       <p style="margin-top:20px;font-size:12px;color:#999">
-        Acesse: <a href="https://sapl.cmm.am.gov.br/materia/pesquisar-materia">sapl.cmm.am.gov.br</a>
+        Acesse: <a href="${SAPL_BASE}/materia/pesquisar-materia">sapl.cmm.am.gov.br</a>
       </p>
     </div>
   `;
 
   await transporter.sendMail({
-    from: `"Monitor CMM" <${EMAIL_REMETENTE}>`,
+    from: `"Monitor ${CASA_NOME}" <${EMAIL_REMETENTE}>`,
     to: EMAIL_DESTINO,
-    subject: `🏛️ CMM: ${novas.length} nova(s) proposição(ões) — ${new Date().toLocaleDateString('pt-BR')}`,
+    subject: `🏛️ ${CASA_NOME}: ${novas.length} nova(s) proposição(ões) — ${new Date().toLocaleDateString('pt-BR')}`,
     html,
   });
 
@@ -192,11 +194,11 @@ async function normalizarProposicao(p, tiposMapa = {}) {
     autor = await resolverAutor(p.autor);
   }
 
-  return { id: gerarId(p), tipo, numero, ano, autor, data, ementa };
+  return { id: gerarId(p), tipo, numero, ano, autor, data, ementa, url: `${SAPL_BASE}/materia/${gerarId(p)}` };
 }
 
 (async () => {
-  console.log('🚀 Iniciando monitor CMM (Câmara Municipal de Manaus)...');
+  console.log(`🚀 Iniciando monitor ${CASA_NOME}...`);
   console.log(`⏰ ${new Date().toLocaleString('pt-BR')}`);
 
   const estado = carregarEstado();
