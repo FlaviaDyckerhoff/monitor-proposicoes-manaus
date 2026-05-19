@@ -15,6 +15,14 @@ const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 };
 
+function escapeHtml(str) {
+  return (str || '').toString()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 // Carrega mapa de tipos na inicialização (id → sigla)
 async function carregarTipos() {
   try {
@@ -58,14 +66,15 @@ async function enviarEmail(novas) {
   });
 
   const linhas = Object.keys(porTipo).sort().map(tipo => {
-    const header = `<tr><td colspan="5" style="padding:10px 8px 4px;background:#f0f4f8;font-weight:bold;color:#1a3a5c;font-size:13px;border-top:2px solid #1a3a5c">${tipo} — ${porTipo[tipo].length} proposição(ões)</td></tr>`;
+    const header = `<tr><td colspan="6" style="padding:10px 8px 4px;background:#f0f4f8;font-weight:bold;color:#1a3a5c;font-size:13px;border-top:2px solid #1a3a5c">${escapeHtml(tipo)} — ${porTipo[tipo].length} proposição(ões)</td></tr>`;
     const rows = porTipo[tipo].map(p =>
       `<tr>
-        <td style="padding:8px;border-bottom:1px solid #eee;color:#555;font-size:12px">${p.tipo || '-'}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee"><strong><a href="${p.url || SAPL_BASE}" style="color:#1a3a5c;text-decoration:none">${p.numero || '-'}/${p.ano || '-'}</a></strong></td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.autor || '-'}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap">${p.data || '-'}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.ementa || '-'}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;color:#555;font-size:12px">${escapeHtml(p.tipo || '-')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee"><strong>${escapeHtml(p.numero || '-')}/${escapeHtml(p.ano || '-')}</strong></td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${escapeHtml(p.autor || '-')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap">${escapeHtml(p.data || '-')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${escapeHtml(p.ementa || '-')}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap"><a href="${p.url || SAPL_BASE}" style="color:#1a3a5c;font-weight:bold">abrir</a></td>
       </tr>`
     ).join('');
     return header + rows;
@@ -85,6 +94,7 @@ async function enviarEmail(novas) {
             <th style="padding:10px;text-align:left">Autor</th>
             <th style="padding:10px;text-align:left">Data</th>
             <th style="padding:10px;text-align:left">Ementa</th>
+            <th style="padding:10px;text-align:left">Link</th>
           </tr>
         </thead>
         <tbody>${linhas}</tbody>
@@ -168,6 +178,28 @@ async function resolverAutor(autorUrl) {
   return String(autorUrl);
 }
 
+function parseAutorFromStr(str) {
+  const match = (str || '').match(/Autoria:\s*(.*?)\s*-\s*/i);
+  return match ? match[1].trim() : null;
+}
+
+async function resolverAutoresMateria(materiaId) {
+  if (!materiaId) return '-';
+
+  try {
+    const res = await fetch(`${API_BASE}/materia/autoria/?materia=${encodeURIComponent(materiaId)}&page_size=20`, { headers: HEADERS });
+    if (!res.ok) return '-';
+    const data = await res.json();
+    const autores = (data.results || [])
+      .map(a => a.nome || a.autor_nome || parseAutorFromStr(a.__str__) || a.autor)
+      .filter(Boolean)
+      .map(String);
+    return autores.length ? autores.join(', ') : '-';
+  } catch {
+    return '-';
+  }
+}
+
 async function normalizarProposicao(p, tiposMapa = {}) {
   // CMM retorna campo "tipo" como inteiro FK; usar mapa carregado na inicialização
   const tipoRaw = p.tipo_materia || p.tipo;
@@ -187,6 +219,8 @@ async function normalizarProposicao(p, tiposMapa = {}) {
       autor = await resolverAutor(primeiro);
     } else if (typeof primeiro === 'object') {
       autor = primeiro.nome || primeiro.name || '-';
+    } else if (typeof primeiro === 'number') {
+      autor = await resolverAutoresMateria(p.id || p.pk);
     } else {
       autor = String(primeiro);
     }
