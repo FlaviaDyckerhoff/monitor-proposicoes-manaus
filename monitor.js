@@ -14,6 +14,7 @@ const HEADERS = {
   'Accept': 'application/json',
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
 };
+const MAX_PAGINAS_COLETA = 50;
 
 function escapeHtml(str) {
   return (str || '').toString()
@@ -199,13 +200,14 @@ async function buscarProposicoes() {
     const results = json.results || [];
     todasProposicoes.push(...results);
 
-    if (pagina === 1 && json.count) {
-      totalPaginas = Math.ceil(json.count / 100);
-      console.log(`📊 Total de proposições em ${ano}: ${json.count} (${totalPaginas} páginas)`);
+    if (pagina === 1) {
+      const total = json.pagination?.total_entries || json.count || results.length;
+      totalPaginas = json.pagination?.total_pages || Math.ceil(total / 100) || 1;
+      console.log(`📊 Total de proposições em ${ano}: ${total} (${totalPaginas} páginas)`);
     }
 
     pagina++;
-  } while (pagina <= totalPaginas && pagina <= 5); // limite: 500 proposições por run
+  } while (pagina <= totalPaginas && pagina <= MAX_PAGINAS_COLETA);
 
   console.log(`📊 Total coletado: ${todasProposicoes.length} proposições`);
   return todasProposicoes;
