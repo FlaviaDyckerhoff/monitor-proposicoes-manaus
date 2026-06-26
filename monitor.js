@@ -8,6 +8,7 @@ const ARQUIVO_ESTADO = 'estado.json';
 
 // CMM usa SAPL — API REST pública, sem autenticação
 const CASA_NOME = 'Câmara Municipal de Manaus';
+const EMAIL_LOCALIDADE = 'Manaus';
 const SAPL_BASE = 'https://sapl.cmm.am.gov.br';
 const API_BASE = 'https://sapl.cmm.am.gov.br/api';
 const HEADERS = {
@@ -234,7 +235,7 @@ async function enviarEmail(novas) {
   await transporter.sendMail({
     from: `"Monitor ${CASA_NOME}" <${EMAIL_REMETENTE}>`,
     to: EMAIL_DESTINO,
-    subject: `🏛️ ${CASA_NOME}: ${novas.length} nova(s) proposição(ões) — ${new Date().toLocaleDateString('pt-BR')}`,
+    subject: `🏛️ ${EMAIL_LOCALIDADE}: ${novas.length} nova(s) proposição(ões) — ${new Date().toLocaleDateString('pt-BR')}`,
     html,
   });
 
