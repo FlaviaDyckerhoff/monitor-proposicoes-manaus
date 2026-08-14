@@ -1,6 +1,10 @@
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 
+// O SAPL da CMM está servindo cadeia TLS incompleta; sem isso o fetch do Node
+// falha antes de acessar a API pública.
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED || '0';
+
 const EMAIL_DESTINO = process.env.EMAIL_DESTINO;
 const EMAIL_REMETENTE = process.env.EMAIL_REMETENTE;
 const EMAIL_SENHA = process.env.EMAIL_SENHA;
